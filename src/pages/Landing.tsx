@@ -104,8 +104,8 @@ export default function Landing({ onGetStarted }: LandingProps) {
                 platform. From data upload to final submission, we handle the entire compliance lifecycle.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 mb-8">
-                <Button onClick={onGetStarted} size="lg" className="bg-gradient-primary text-lg">
-                  Access Dashboard
+                <Button onClick={() => window.location.href = "/declarations"} size="lg" className="bg-gradient-primary text-lg">
+                  View Declarations
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
                 <Button variant="outline" size="lg" className="text-lg">
@@ -200,12 +200,12 @@ export default function Landing({ onGetStarted }: LandingProps) {
                 </CardHeader>
                 <CardContent>
                   <Button 
-                    onClick={onGetStarted}
+                    onClick={() => window.location.href = "/declarations"}
                     variant="secondary" 
                     size="lg" 
                     className="w-full mb-4"
                   >
-                    Access Dashboard Now
+                    View Declarations
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                   <p className="text-xs text-primary-foreground/60 text-center">
