@@ -8,33 +8,70 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* Core Brand Colors - Professional B2B SaaS */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 222 20% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 20% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222 20% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary: Professional Navy Blue - Trust & Corporate */
+    --primary: 221 83% 28%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 221 83% 24%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary: Clean Light Blue - Supporting Actions */
+    --secondary: 214 32% 96%;
+    --secondary-foreground: 221 83% 28%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted: Subtle Backgrounds */
+    --muted: 214 32% 96%;
+    --muted-foreground: 215 20% 55%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent: Fresh Green - Success & Compliance */
+    --accent: 142 76% 36%;
+    --accent-foreground: 0 0% 100%;
+    --accent-hover: 142 76% 32%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Warning: Warm Orange - Alerts & Attention */
+    --warning: 25 95% 53%;
+    --warning-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Destructive: Error Red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* UI Elements */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 28%;
+
+    /* Status Colors */
+    --status-pending: 43 96% 56%;
+    --status-pending-foreground: 26 83% 14%;
+    --status-progress: 217 91% 60%;
+    --status-progress-foreground: 0 0% 100%;
+    --status-review: 25 95% 53%;
+    --status-review-foreground: 0 0% 100%;
+    --status-approved: 142 76% 36%;
+    --status-approved-foreground: 0 0% 100%;
+    --status-submitted: 263 85% 60%;
+    --status-submitted-foreground: 0 0% 100%;
+    --status-closed: 215 20% 65%;
+    --status-closed-foreground: 0 0% 100%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(221 83% 35%));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(142 76% 42%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(214 32% 98%));
+
+    /* Shadows */
+    --shadow-soft: 0 1px 3px 0 hsl(var(--primary) / 0.1), 0 1px 2px 0 hsl(var(--primary) / 0.06);
+    --shadow-medium: 0 4px 6px -1px hsl(var(--primary) / 0.1), 0 2px 4px -1px hsl(var(--primary) / 0.06);
+    --shadow-large: 0 10px 15px -3px hsl(var(--primary) / 0.1), 0 4px 6px -2px hsl(var(--primary) / 0.05);
 
     --radius: 0.5rem;
 
