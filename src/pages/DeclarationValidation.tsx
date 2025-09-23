@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/data-table";
 import { ArrowLeft, RefreshCw, CheckCircle2, AlertTriangle, Download, Pencil, X } from "lucide-react";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 import { useToast } from "@/hooks/use-toast";
 import { Sidebar } from "@/components/layout/sidebar";
 import { WorkflowProgress } from "@/components/ui/workflow-progress";
@@ -375,6 +377,181 @@ export default function DeclarationValidation() {
     return null;
   };
 
+  const markIssueFixed = (issueId: string) => {
+    setErrors((prev) => {
+      const issue = prev.find((e) => e.id === issueId);
+      const next = prev.filter((e) => e.id !== issueId);
+      // If we just resolved the last issue for the selected line, keep selection but it will appear clean
+      if (issue && selectedLine === issue.line) {
+        const remainingForLine = next.some((e) => e.line === issue.line);
+        if (!remainingForLine) {
+          // optional: keep selected so user sees "No errors found for this line"
+        }
+      }
+      return next;
+    });
+
+    toast({ title: "Issue marked fixed" });
+  };
+
+  const exportErrorsToXLSX = async () => {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "VATFlow";
+    wb.created = new Date();
+
+    // Summary sheet
+    const sum = wb.addWorksheet("Summary", { views: [{ state: "frozen", ySplit: 2 }] });
+    // Title
+    sum.mergeCells("A1:B1");
+    const title = sum.getCell("A1");
+    title.value = `Validation Summary – Declaration ${id}`;
+    title.font = { bold: true, size: 16, color: { argb: "FF0F172A" } };
+    title.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE2E8F0" } };
+    title.alignment = { vertical: "middle", horizontal: "left" };
+    sum.getRow(1).height = 28;
+
+    sum.columns = [
+      { header: "Metric", key: "metric", width: 28 },
+      { header: "Value", key: "value", width: 24 },
+    ];
+    // Header row
+    sum.getRow(2).values = ["Metric", "Value"];
+    sum.getRow(2).font = { bold: true };
+    sum.getRow(2).alignment = { vertical: "middle", horizontal: "center" };
+    sum.getRow(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
+    sum.getRow(2).border = { bottom: { style: "thin", color: { argb: "FFCBD5E1" } } };
+
+    // KPI rows
+    const kpiRows = [
+      ["Total Records", ledgerData.length],
+      ["Errors", errorCount],
+      ["Warnings", warningCount],
+      ["Valid %", `${validPercent}%`],
+    ];
+    kpiRows.forEach((vals, i) => {
+      const r = sum.getRow(3 + i);
+      r.values = vals as any;
+      // zebra on metric column
+      r.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: i % 2 === 0 ? "FFFAFAFA" : "FFF1F5F9" } };
+    });
+    // colored badges on values
+    const badge = (row: number, color: string) => {
+      const c = sum.getCell(`B${row}`);
+      c.font = { bold: true };
+      c.alignment = { horizontal: "center" };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
+      c.border = {
+        top: { style: "thin", color: { argb: "FFFFFFFF" } },
+        bottom: { style: "thin", color: { argb: "FFFFFFFF" } },
+      };
+    };
+    badge(3, "FFE0F2FE"); // total
+    badge(4, "FFFECACA"); // errors
+    badge(5, "FFFDE68A"); // warnings
+    badge(6, "FFBBF7D0"); // valid
+
+    // Errors sheet
+    const ws = wb.addWorksheet("Validation Issues", { views: [{ state: "frozen", ySplit: 1 }] });
+    ws.columns = [
+      { header: "Line", key: "line", width: 8 },
+      { header: "Field", key: "field", width: 16 },
+      { header: "Rule", key: "rule", width: 28 },
+      { header: "Severity", key: "severity", width: 12 },
+      { header: "Message", key: "message", width: 80 },
+      { header: "Current Value", key: "current", width: 22 },
+      { header: "Suggested Fix", key: "fix", width: 40 },
+    ];
+    ws.getRow(1).font = { bold: true, color: { argb: "FF0F172A" } };
+    ws.getRow(1).alignment = { vertical: "middle" };
+    ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE2E8F0" } };
+    ws.getRow(1).border = {
+      bottom: { style: "thin", color: { argb: "FF94A3B8" } },
+    };
+
+    const palette: Record<string, { bg: string; font: string; border: string; strong: string }> = {
+      error: { bg: "FFFEE2E2", font: "FF991B1B", border: "FFEF4444", strong: "FFFECACA" },
+      warning: { bg: "FFFFF7ED", font: "FFB45309", border: "FFF59E0B", strong: "FFFDE68A" },
+      info: { bg: "FFE6FFFA", font: "FF065F46", border: "FF10B981", strong: "FFBBF7D0" },
+    };
+
+    const currentValueFor = (line: number, field: string) => {
+      const row = ledgerData.find((r) => r.line === line) as any;
+      return row?.[field] ?? "";
+    };
+
+    const suggestionFor = (e: ValidationError): string => {
+      if (e.suggestedFix) return e.suggestedFix;
+      switch (e.rule) {
+        case "MANDATORY_FIELDS_MISSING":
+          return "Complete missing mandatory fields for this line.";
+        case "IC_VAT_NUMBER_MISSING":
+          return "Add a valid VAT number (e.g., ESB12345678).";
+        case "IC_VAT_ZERO":
+          return "Set VAT rate to 0% with proper exemption reason.";
+        case "NET_VAT_GROSS_MISMATCH":
+          return "Ensure Net + VAT equals Gross.";
+        case "VAT_CALCULATION_INCORRECT":
+          return "Recalculate: VAT = Net × correct rate.";
+        case "IOSS_INCORRECT_USAGE":
+          return "Remove/adjust IOSS code for correct use case.";
+        case "OSS_INCORRECT_USAGE":
+          return "Use OSS only for eligible B2C supplies.";
+        case "LOCAL_CURRENCY_MISMATCH":
+          return "Match currency to registration or include FX.";
+        case "A5_SHOULD_BE_ZERO":
+          return "Set VAT amount to 0 for A5 transactions.";
+        case "VIES_INVALID":
+          return "Verify in VIES or provide historical validity.";
+        default:
+          return "Review and correct the highlighted field.";
+      }
+    };
+
+    errors.forEach((e) => {
+      const row = ws.addRow({
+        line: e.line,
+        field: e.field,
+        rule: e.rule,
+        severity: e.severity.toUpperCase(),
+        message: e.message,
+        current: String(currentValueFor(e.line, e.field)),
+        fix: suggestionFor(e),
+      });
+      const colors = palette[e.severity] || palette.info;
+      row.eachCell((cell, col) => {
+        // full background by severity
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors.bg } };
+        // emphasize severity cell
+        if (col === 4) {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors.strong } };
+          cell.font = { bold: true, color: { argb: colors.font } };
+          cell.alignment = { horizontal: "center" };
+        }
+        if (col === 5 || col === 7) cell.alignment = { wrapText: true };
+      });
+      row.border = {
+        top: { style: "thin", color: { argb: colors.border } },
+        bottom: { style: "thin", color: { argb: colors.border } },
+        left: { style: "thin", color: { argb: colors.border } },
+        right: { style: "thin", color: { argb: colors.border } },
+      };
+    });
+
+    // Autofit row heights for wrapped text
+    ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return;
+      row.height = 24 + Math.ceil(String(row.getCell(5).value || "").length / 60) * 12;
+    });
+
+    const buf = await wb.xlsx.writeBuffer();
+    saveAs(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `validation_issues_${id}.xlsx`);
+
+    toast({
+      title: "Exported",
+      description: "Validation issues exported to Excel",
+    });
+  };
+
   const handleLineSelect = (line: number) => {
     setSelectedLine(line);
   };
@@ -407,7 +584,7 @@ export default function DeclarationValidation() {
     
     // Mark any errors for this line+field as resolved
     setErrors(prev => prev.filter(e => !(e.line === editingCell.line && e.field === editingCell.field)));
-
+    
     setEditingCell(null);
     setEditValue("");
     
@@ -434,7 +611,14 @@ export default function DeclarationValidation() {
   };
 
   const handleContinue = () => {
-    // Allow user to proceed without blocking; move to recap review
+    if (errors.filter(e => e.severity === "error").length > 0) {
+      toast({
+        title: "Unresolved errors",
+        description: "Please fix all errors before continuing to review.",
+        variant: "destructive" as any,
+      });
+      return;
+    }
     navigate(`/declarations/${id}/review`);
   };
 
@@ -488,8 +672,8 @@ export default function DeclarationValidation() {
             <h1 className="text-3xl font-bold tracking-tight">Automatic Validation</h1>
             <div className="flex flex-wrap items-center gap-2 mt-1">
               <p className="text-muted-foreground mr-3">
-                ECL-SPAIN-M8-2025 • Review validation results and fix errors
-              </p>
+              ECL-SPAIN-M8-2025 • Review validation results and fix errors
+            </p>
               <Badge variant="outline" className="text-[11px]">Total: {ledgerData.length}</Badge>
               <Badge variant="destructive" className="text-[11px]">Errors: {errorCount}</Badge>
               <Badge variant="warning" className="text-[11px]">Warnings: {warningCount}</Badge>
@@ -503,10 +687,12 @@ export default function DeclarationValidation() {
           <CardContent className="pt-6">
             <WorkflowProgress
               steps={[
-                { id: "1", title: "Upload", description: "Files provided", status: "completed" },
-                { id: "2", title: "Automatic Validation", description: `${errorCount} errors, ${warningCount} warnings`, status: "current" },
-                { id: "3", title: "Review & Resubmit", description: "Fix and resubmit", status: "pending" },
-                { id: "4", title: "Verification", description: "Team verification", status: "pending" },
+                { id: "1", title: "Data pending", description: "Data not received", status: "completed" },
+                { id: "2", title: "In preparation", description: "Client uploaded data", status: "completed" },
+                { id: "3", title: "Awaiting remark validation", description: `${errorCount} errors, ${warningCount} warnings`, status: "current" },
+                { id: "4", title: "Awaiting Approval and payment", description: "Final client validation", status: "pending" },
+                { id: "5", title: "Awaiting submission", description: "Ready to submit", status: "pending" },
+                { id: "6", title: "Closed", description: "Submitted", status: "pending" },
               ]}
               orientation="horizontal"
             />
@@ -553,7 +739,7 @@ export default function DeclarationValidation() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="max-h-80 overflow-auto border rounded-lg">
+              <div className="max-h-[51vh] overflow-auto border rounded-lg">
                 <table className="w-full text-[12px]">
                   <thead className="sticky top-0 bg-background">
                     <tr className="border-b">
@@ -859,7 +1045,7 @@ export default function DeclarationValidation() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2 max-h-80 overflow-auto">
+              <div className="space-y-2 max-h-[51vh] overflow-auto">
                 {selectedLine ? (
                   getDisplayedErrors().length > 0 ? (
                     getDisplayedErrors().map((error, idx) => (
@@ -882,6 +1068,17 @@ export default function DeclarationValidation() {
                                 <p className="text-[13px]">{error.suggestedFix}</p>
                               </div>
                             )}
+                          </div>
+                          <div className="pl-2">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              title="Mark issue fixed"
+                              onClick={() => markIssueFixed(error.id)}
+                            >
+                              <CheckCircle2 className="h-4 w-4 text-accent" />
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -922,7 +1119,7 @@ export default function DeclarationValidation() {
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={exportErrorsToXLSX}>
             <Download className="h-4 w-4" />
             Export Error Report
           </Button>

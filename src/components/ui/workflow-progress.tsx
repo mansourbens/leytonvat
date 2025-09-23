@@ -31,16 +31,16 @@ export function WorkflowProgress({ steps, className, orientation = "vertical" }:
 
             return (
               <div key={step.id} className="flex items-center flex-1 min-w-0">
-                <div className="flex flex-col items-center text-center px-2">
+                <div className="flex flex-col items-center text-center px-3">
                   {icon}
                   <div className={cn(
-                    "mt-1 text-xs font-medium truncate max-w-[140px]",
+                    "mt-1 text-xs font-medium whitespace-normal break-words",
                     step.status === "completed" ? "text-accent" : step.status === "current" ? "text-primary" : "text-muted-foreground"
                   )}>
                     {step.title}
                   </div>
                   {step.description && (
-                    <div className="mt-0.5 text-[11px] text-muted-foreground truncate max-w-[160px]">
+                    <div className="mt-0.5 text-[11px] text-muted-foreground whitespace-normal break-words">
                       {step.description}
                     </div>
                   )}

@@ -272,15 +272,15 @@ export default function Declarations() {
   const getStatusText = (status: string) => {
     switch (status) {
       case "pending":
-        return "Data Pending";
+        return "Data pending";
       case "progress":
-        return "In Progress";
+        return "In preparation";
       case "review":
-        return "En cours de vérification";
+        return "Awaiting remark validation";
       case "approved":
-        return "Approved";
+        return "Awaiting Approval and payment";
       case "submitted":
-        return "Submitted";
+        return "Awaiting submission";
       case "closed":
         return "Closed";
       default:
@@ -354,84 +354,14 @@ export default function Declarations() {
               <h1 className="text-3xl font-bold tracking-tight">Active Declarations</h1>
               <p className="text-muted-foreground">Manage your VAT declarations and compliance obligations</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={() => setViewMode(viewMode === "table" ? "cards" : "table")}
+          </div>
+
+          {/* Filters */}
+          <Button variant="outline" size="icon" onClick={() => setViewMode(viewMode === "table" ? "cards" : "table")}
                 title={viewMode === "table" ? "Switch to Cards" : "Switch to Table"}
               >
                 {viewMode === "table" ? <LayoutGrid className="h-4 w-4" /> : <TableIcon className="h-4 w-4" />}
               </Button>
-              <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-                <DialogTrigger asChild>
-                  <Button className="gap-2 bg-gradient-primary">
-                    <Plus className="h-4 w-4" />
-                    New Declaration
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create Declaration</DialogTitle>
-                    <DialogDescription>Enter the details to start a new declaration.</DialogDescription>
-                  </DialogHeader>
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <Input placeholder="Name (e.g., VATReturn-FRANCE-Q4-2025)" id="new-name" />
-                    <Select>
-                      <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="VAT Return">VAT Return</SelectItem>
-                        <SelectItem value="ECL">ECL</SelectItem>
-                        <SelectItem value="Intrastat">Intrastat</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input placeholder="Country" id="new-country" />
-                    <Input placeholder="Country Code (e.g., FR)" id="new-cc" />
-                    <Input placeholder="Period (e.g., Q4 2025)" id="new-period" />
-                    <Select>
-                      <SelectTrigger><SelectValue placeholder="Frequency" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                        <SelectItem value="quarterly">Quarterly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input placeholder="Deadline (YYYY-MM-DD)" id="new-deadline" />
-                    <Input placeholder="VAT Registration" id="new-reg" />
-                  </div>
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button variant="outline" onClick={() => setOpenCreate(false)}>Cancel</Button>
-                    <Button onClick={() => {
-                      const name = (document.getElementById('new-name') as HTMLInputElement)?.value || 'New Declaration';
-                      const typeSel = (document.querySelector('[aria-expanded] [data-placeholder="Type"]') as HTMLElement);
-                      const country = (document.getElementById('new-country') as HTMLInputElement)?.value || 'France';
-                      const cc = (document.getElementById('new-cc') as HTMLInputElement)?.value || 'FR';
-                      const period = (document.getElementById('new-period') as HTMLInputElement)?.value || 'Q4 2025';
-                      const deadline = (document.getElementById('new-deadline') as HTMLInputElement)?.value || new Date().toISOString().slice(0,10);
-                      const reg = (document.getElementById('new-reg') as HTMLInputElement)?.value || '';
-                      const newDecl: Declaration = {
-                        id: String(Date.now()),
-                        name,
-                        country,
-                        countryCode: cc,
-                        period,
-                        type: 'monthly',
-                        declarationType: 'VAT Return',
-                        deadline,
-                        status: 'pending',
-                        priority: 'normal',
-                        registration: reg,
-                        lastUpdated: new Date().toISOString().slice(0,10),
-                      };
-                      setDeclarations((prev) => [newDecl, ...prev]);
-                      setOpenCreate(false);
-                      navigate(`/declarations/${newDecl.id}`);
-                    }}>
-                      Create
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-
-          {/* Filters */}
           {viewMode === "table" && (
             <div className="flex items-center gap-2">
               <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />

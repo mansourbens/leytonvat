@@ -304,7 +304,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <StatusBadge variant={d.status as any}>
-                    {d.status === 'review' ? 'En cours de vérification' : d.status === 'progress' ? 'In Progress' : d.status}
+                    {d.status === 'review' ? 'Awaiting remark validation' : d.status === 'progress' ? 'In preparation' : d.status === 'pending' ? 'Data pending' : d.status === 'approved' ? 'Awaiting Approval and payment' : d.status === 'submitted' ? 'Awaiting submission' : d.status}
                   </StatusBadge>
                   <Button variant="ghost" size="sm" onClick={() => navigate(`/declarations/${d.id}`)}>
                     View

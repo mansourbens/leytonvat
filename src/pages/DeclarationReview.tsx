@@ -85,10 +85,12 @@ export default function DeclarationReview() {
             <CardContent className="pt-6">
               <WorkflowProgress
                 steps={[
-                  { id: "1", title: "Upload", description: "Files provided", status: "completed" },
-                  { id: "2", title: "Automatic Validation", description: "Checks done", status: "completed" },
-                  { id: "3", title: "Review & Resubmit", description: "Final recap", status: "current" },
-                  { id: "4", title: "Verification", description: "Team verification", status: "pending" },
+                  { id: "1", title: "Data pending", description: "Data not received", status: "completed" },
+                  { id: "2", title: "In preparation", description: "Client uploaded data", status: "completed" },
+                  { id: "3", title: "Awaiting remark validation", description: "Validation checks completed", status: "completed" },
+                  { id: "4", title: "Awaiting Approval and payment", description: "Review & payment", status: "current" },
+                  { id: "5", title: "Awaiting submission", description: "Ready to submit", status: "pending" },
+                  { id: "6", title: "Closed", description: "Submitted", status: "pending" },
                 ]}
                 orientation="horizontal"
               />
