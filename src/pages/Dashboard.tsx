@@ -14,6 +14,7 @@ import {
   Eye,
   MoreHorizontal,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 // Mock data for demonstration
 const workflowSteps = [
@@ -102,6 +103,7 @@ const upcomingDeadlines = [
 ];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -113,9 +115,9 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => navigate('/declarations')}>
             <Calendar className="h-4 w-4" />
-            View Calendar
+            Declarations
           </Button>
           <Button className="gap-2 bg-gradient-primary">
             <Upload className="h-4 w-4" />
@@ -265,6 +267,48 @@ export default function Dashboard() {
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Active Declarations */}
+      <Card className="bg-gradient-card border shadow-soft">
+        <CardHeader>
+          <CardTitle>Active Declarations</CardTitle>
+          <CardDescription>
+            Quick access to ongoing submissions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[{
+              id: "1",
+              name: "ECL-SPAIN-M8-2025",
+              country: "Spain",
+              period: "August 2025",
+              status: (typeof window !== 'undefined' && localStorage.getItem('declaration:1:status')) || 'progress',
+            }, {
+              id: "2",
+              name: "VATReturn-POLAND-Q3-2025",
+              country: "Poland",
+              period: "Q3 2025",
+              status: (typeof window !== 'undefined' && localStorage.getItem('declaration:2:status')) || 'progress',
+            }].map((d) => (
+              <div key={d.id} className="flex items-center justify-between p-4 rounded-lg border bg-background/50">
+                <div>
+                  <p className="font-medium">{d.name}</p>
+                  <p className="text-sm text-muted-foreground">{d.country} • {d.period}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <StatusBadge variant={d.status as any}>
+                    {d.status === 'review' ? 'En cours de vérification' : d.status === 'progress' ? 'In Progress' : d.status}
+                  </StatusBadge>
+                  <Button variant="ghost" size="sm" onClick={() => navigate(`/declarations/${d.id}`)}>
+                    View
+                  </Button>
                 </div>
               </div>
             ))}

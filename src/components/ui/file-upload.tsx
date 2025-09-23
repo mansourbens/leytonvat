@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ export function FileUpload({
 }: FileUploadProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
 
   const formatFileSize = (bytes: number) => {
@@ -110,6 +111,10 @@ export function FileUpload({
     e.target.value = "";
   }, [processFiles]);
 
+  const openFileDialog = () => {
+    fileInputRef.current?.click();
+  };
+
   const removeFile = (id: string) => {
     setFiles(prev => prev.filter(f => f.id !== id));
   };
@@ -138,19 +143,22 @@ export function FileUpload({
           <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <div className="space-y-2">
             <h3 className="text-lg font-medium">Drop files here</h3>
-            <p className="text-sm text-muted-foreground">
-              or click to browse files
-            </p>
+            <div className="flex items-center justify-center gap-2">
+              <Button variant="outline" size="sm" onClick={openFileDialog}>
+                Browse files
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground">
               Supports: {acceptedTypes.join(", ")} • Max size: {formatFileSize(maxSize)}
             </p>
           </div>
           <input
+            ref={fileInputRef}
             type="file"
             multiple={multiple}
             accept={acceptedTypes.join(",")}
             onChange={handleFileInput}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            className="hidden"
           />
         </div>
       </Card>

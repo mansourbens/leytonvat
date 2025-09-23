@@ -11,16 +11,18 @@ import {
   Building2,
 } from "lucide-react";
 import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: Home, current: true },
-  { name: "VAT Obligations", href: "/obligations", icon: FileText, current: false },
-  { name: "File Upload", href: "/upload", icon: Upload, current: false },
-  { name: "Calendar", href: "/calendar", icon: Calendar, current: false },
-  { name: "Reports", href: "/reports", icon: BarChart3, current: false },
-  { name: "Clients", href: "/clients", icon: Users, current: false },
+  { name: "Dashboard", href: "/", icon: Home },
+  { name: "Declarations", href: "/declarations", icon: FileText },
+  { name: "VAT Obligations", href: "/obligations", icon: FileText },
+  { name: "File Upload", href: "/upload", icon: Upload },
+  { name: "Calendar", href: "/calendar", icon: Calendar },
+  { name: "Reports", href: "/reports", icon: BarChart3 },
+  { name: "Clients", href: "/clients", icon: Users },
 ];
 
 const secondaryNavigation = [
@@ -29,11 +31,18 @@ const secondaryNavigation = [
 
 export function Sidebar({ className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(href + "/");
+  };
 
   return (
     <div
       className={cn(
-        "flex flex-col h-full bg-primary text-primary-foreground",
+        "flex flex-col h-screen sticky top-0 bg-primary text-primary-foreground z-30",
         collapsed ? "w-16" : "w-64",
         "transition-all duration-300 ease-in-out",
         className
@@ -56,22 +65,26 @@ export function Sidebar({ className }: SidebarProps) {
 
       {/* Main Navigation */}
       <nav className="flex-1 px-4 py-6 space-y-2">
-        {navigation.map((item) => (
-          <Button
-            key={item.name}
-            variant={item.current ? "secondary" : "ghost"}
-            className={cn(
-              "w-full justify-start text-left",
-              item.current
-                ? "bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
-                : "text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10",
-              collapsed && "justify-center px-2"
-            )}
-          >
-            <item.icon className={cn("h-5 w-5", !collapsed && "mr-3")} />
-            {!collapsed && <span>{item.name}</span>}
-          </Button>
-        ))}
+        {navigation.map((item) => {
+          const active = isActive(item.href);
+          return (
+            <Button
+              key={item.name}
+              onClick={() => navigate(item.href)}
+              variant={active ? "secondary" : "ghost"}
+              className={cn(
+                "w-full justify-start text-left",
+                active
+                  ? "bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
+                  : "text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10",
+                collapsed && "justify-center px-2"
+              )}
+            >
+              <item.icon className={cn("h-5 w-5", !collapsed && "mr-3")} />
+              {!collapsed && <span>{item.name}</span>}
+            </Button>
+          );
+        })}
       </nav>
 
       {/* Secondary Navigation */}

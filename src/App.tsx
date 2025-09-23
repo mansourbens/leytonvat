@@ -4,9 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
+import Landing from "./pages/Landing";
 import Declarations from "./pages/Declarations";
 import DeclarationDetails from "./pages/DeclarationDetails";
 import DeclarationValidation from "./pages/DeclarationValidation";
+import DeclarationReview from "./pages/DeclarationReview";
+import CalendarPage from "./pages/Calendar";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,9 +22,12 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/landing" element={<Landing onGetStarted={() => {}} />} />
           <Route path="/declarations" element={<Declarations />} />
           <Route path="/declarations/:id" element={<DeclarationDetails />} />
           <Route path="/declarations/:id/validation" element={<DeclarationValidation />} />
+          <Route path="/declarations/:id/review" element={<DeclarationReview />} />
+          <Route path="/calendar" element={<CalendarPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

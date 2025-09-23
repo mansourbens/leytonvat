@@ -42,7 +42,7 @@ export function DataTable({
         <StatusBadge variant={value as any}>
           {value === "pending" && "Data Pending"}
           {value === "progress" && "In Preparation"}
-          {value === "review" && "Under Review"}
+          {value === "review" && "En cours de vérification"}
           {value === "approved" && "Approved"}
           {value === "submitted" && "Submitted"}
           {value === "closed" && "Closed"}

@@ -7,6 +7,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { FileUpload } from "@/components/ui/file-upload";
 import { ArrowLeft, FileSpreadsheet, FileText, Send, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Sidebar } from "@/components/layout/sidebar";
+import { WorkflowProgress } from "@/components/ui/workflow-progress";
 
 interface UploadedFileInfo {
   type: "ledger" | "invoice";
@@ -86,9 +88,38 @@ export default function DeclarationDetails() {
   const ledgerFiles = uploadedFiles.find(item => item.type === "ledger")?.files || [];
   const invoiceFiles = uploadedFiles.find(item => item.type === "invoice")?.files || [];
 
+  const steps = [
+    {
+      id: "1",
+      title: "Upload",
+      description: ledgerFiles.length > 0 ? `${ledgerFiles.length} ledger file(s) added` : "Add ledgers and invoices",
+      status: (ledgerFiles.length > 0) ? ("completed" as const) : ("current" as const),
+    },
+    {
+      id: "2",
+      title: "Automatic Validation",
+      description: "Run checks and view errors",
+      status: (ledgerFiles.length > 0) ? ("pending" as const) : ("pending" as const),
+    },
+    {
+      id: "3",
+      title: "Review & Resubmit",
+      description: "Fix issues and resubmit",
+      status: ("pending" as const),
+    },
+    {
+      id: "4",
+      title: "Verification",
+      description: "Team verification",
+      status: ("pending" as const),
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 space-y-6">
+    <div className="flex h-screen bg-background">
+      <Sidebar />
+      <main className="flex-1 overflow-auto">
+      <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button 
@@ -110,6 +141,13 @@ export default function DeclarationDetails() {
             In Progress
           </StatusBadge>
         </div>
+
+        {/* Stepper */}
+        <Card className="bg-gradient-card border shadow-soft">
+          <CardContent className="pt-6">
+            <WorkflowProgress steps={steps} orientation="horizontal" />
+          </CardContent>
+        </Card>
 
         {/* Declaration Info */}
         <Card className="bg-gradient-card border shadow-soft">
@@ -227,6 +265,7 @@ export default function DeclarationDetails() {
           </Button>
         </div>
       </div>
+      </main>
     </div>
   );
 }

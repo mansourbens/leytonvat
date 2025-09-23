@@ -1,18 +1,12 @@
-import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import Dashboard from "./Dashboard";
-import Landing from "./Landing";
 
 const Index = () => {
-  const [showDashboard, setShowDashboard] = useState(false);
-
-  if (!showDashboard) {
-    return <Landing onGetStarted={() => setShowDashboard(true)} />;
-  }
-
   return (
-    <div className="flex h-screen bg-background">
-      <Sidebar />
+    <div className="flex min-h-screen bg-background">
+      <div className="sticky top-0 h-screen w-64 shrink-0 z-20">
+        <Sidebar />
+      </div>
       <main className="flex-1 overflow-auto">
         <div className="p-8">
           <Dashboard />
