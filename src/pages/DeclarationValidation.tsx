@@ -1071,13 +1071,12 @@ export default function DeclarationValidation() {
                           </div>
                           <div className="pl-2">
                             <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7"
-                              title="Mark issue fixed"
+                              size="sm"
+                              variant="outline"
+                              className="h-7"
                               onClick={() => markIssueFixed(error.id)}
                             >
-                              <CheckCircle2 className="h-4 w-4 text-accent" />
+                              mark as fixed
                             </Button>
                           </div>
                         </div>
@@ -1107,6 +1106,16 @@ export default function DeclarationValidation() {
                             </Badge>
                           </div>
                           <p className="text-[13px]">{error.message}</p>
+                        </div>
+                        <div className="pl-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7"
+                            onClick={(e) => { e.stopPropagation(); markIssueFixed(error.id); }}
+                          >
+                            mark as fixed
+                          </Button>
                         </div>
                       </div>
                     </div>
