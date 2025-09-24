@@ -20,10 +20,7 @@ interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Declarations", href: "/declarations", icon: FileText },
-  { name: "VAT Obligations", href: "/obligations", icon: FileText },
-  { name: "File Upload", href: "/upload", icon: Upload },
   { name: "Calendar", href: "/calendar", icon: Calendar },
-  { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "Clients", href: "/clients", icon: Users },
 ];
 
@@ -114,7 +111,7 @@ export function Sidebar({ className, defaultCollapsed }: SidebarProps) {
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">John Doe</p>
+              <p className="text-sm font-medium truncate">Ana Pinto</p>
               <p className="text-xs text-primary-foreground/70 truncate">
                 VAT Specialist
               </p>
