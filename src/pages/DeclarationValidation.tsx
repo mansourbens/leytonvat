@@ -11,6 +11,8 @@ import { saveAs } from "file-saver";
 import { useToast } from "@/hooks/use-toast";
 import { Sidebar } from "@/components/layout/sidebar";
 import { WorkflowProgress } from "@/components/ui/workflow-progress";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface ValidationError {
   id: string;
@@ -20,6 +22,18 @@ interface ValidationError {
   severity: "error" | "warning" | "info";
   message: string;
   suggestedFix?: string;
+}
+
+interface ThreadMessage {
+  id: string;
+  line: number;
+  field: string;
+  author: "client" | "consultant";
+  message: string;
+  timestamp: string;
+  parentId?: string;
+  resolved?: boolean;
+  acknowledged?: boolean;
 }
 
 const mockLedgerData = [
@@ -360,13 +374,51 @@ export default function DeclarationValidation() {
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
   const [isResubmitting, setIsResubmitting] = useState(false);
   const [severityFilter, setSeverityFilter] = useState<"all" | "error" | "warning" | "info">("all");
-  const [rowTab, setRowTab] = useState<"all" | "clean" | "issues">("all");
+  const [rowTab, setRowTab] = useState<"all" | "clean" | "issues" | "comments">("all");
   const [editingCell, setEditingCell] = useState<{line: number, field: string} | null>(null);
   const [editValue, setEditValue] = useState("");
   const [ledgerData, setLedgerData] = useState(mockLedgerData);
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   // Generate errors only once to avoid re-randomization on edits
   const [errors, setErrors] = useState<ValidationError[]>(() => generateMockErrors(mockLedgerData));
+
+  // Comments/threads derived initially from errors to keep context, generated once
+  const generateMockComments = (errs: ValidationError[]): ThreadMessage[] => {
+    const messages: ThreadMessage[] = [];
+    let mid = 1;
+    errs.slice(0, Math.min(12, errs.length)).forEach((e) => {
+      messages.push({
+        id: `m${mid++}`,
+        line: e.line,
+        field: e.field,
+        author: "consultant",
+        message: `Please review: ${e.message}`,
+        timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+      });
+      messages.push({
+        id: `m${mid++}`,
+        line: e.line,
+        field: e.field,
+        author: "client",
+        message: "Acknowledged, will correct and update.",
+        timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+        parentId: `m${mid - 2}`,
+      });
+    });
+    return messages;
+  };
+  const [comments, setComments] = useState<ThreadMessage[]>(() => {
+    const base = generateMockComments(generateMockErrors(mockLedgerData));
+    // Ensure some comments exist on specific lines/fields for demo purposes
+    return base.concat([
+      { id: "demo1", line: 1, field: "description", author: "consultant", message: "Could you clarify the service scope?", timestamp: new Date().toISOString() },
+      { id: "demo2", line: 5, field: "vat", author: "client", message: "Adjusted VAT to 21% as requested.", timestamp: new Date().toISOString() },
+      { id: "demo3", line: 9, field: "amount", author: "consultant", message: "Net should exclude shipping.", timestamp: new Date().toISOString() },
+    ]);
+  });
+
+  const [selectedThread, setSelectedThread] = useState<{ line: number; field: string } | null>(null);
+  const [replyText, setReplyText] = useState("");
 
   // Determine highest-severity issue for a given line/field (error > warning > info)
   const getCellIssueSeverity = (line: number, field: string): "error" | "warning" | "info" | null => {
@@ -392,6 +444,40 @@ export default function DeclarationValidation() {
     });
 
     toast({ title: "Issue marked fixed" });
+  };
+
+  const getCommentsFor = (line: number, field: string) => comments.filter(c => c.line === line && c.field === field);
+  const getCommentCount = (line: number, field: string) => getCommentsFor(line, field).filter(c => !c.resolved).length;
+  const getLineCommentCount = (line: number) => comments.filter(c => c.line === line && !c.resolved).length;
+  const openThread = (line: number, field: string) => {
+    setSelectedLine(line);
+    setSelectedThread({ line, field });
+  };
+  const closeThread = () => setSelectedThread(null);
+  const sendReply = () => {
+    if (!selectedThread || !replyText.trim()) return;
+    const { line, field } = selectedThread;
+    setComments(prev => prev.concat({
+      id: `m${prev.length + 1}`,
+      line,
+      field,
+      author: "client",
+      message: replyText.trim(),
+      timestamp: new Date().toISOString(),
+    }));
+    setReplyText("");
+  };
+  const acknowledgeThread = () => {
+    if (!selectedThread) return;
+    const { line, field } = selectedThread;
+    setComments(prev => prev.map(m => (m.line === line && m.field === field ? { ...m, acknowledged: true } : m)));
+  };
+  const resolveThread = () => {
+    if (!selectedThread) return;
+    const { line, field } = selectedThread;
+    // mark all comments as resolved and remove related errors for that field to sync with validation
+    setComments(prev => prev.map(m => (m.line === line && m.field === field ? { ...m, resolved: true } : m)));
+    setErrors(prev => prev.filter(e => !(e.line === line && e.field === field)));
   };
 
   const exportErrorsToXLSX = async () => {
@@ -735,6 +821,13 @@ export default function DeclarationValidation() {
                   >
                     Rows with issues
                   </Button>
+                  <Button
+                    size="sm"
+                    variant={rowTab === "comments" ? "default" : "outline"}
+                    onClick={() => setRowTab("comments")}
+                  >
+                    Rows with comments
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -749,14 +842,17 @@ export default function DeclarationValidation() {
                       <th className="text-right px-3 py-2">Amount</th>
                       <th className="text-right px-3 py-2">VAT</th>
                       <th className="text-left px-3 py-2">Country</th>
+                      <th className="text-left px-3 py-2">Comments</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ledgerData
                       .filter((row) => {
                         const hasErr = getErrorsForLine(row.line).length > 0;
+                        const hasComments = getLineCommentCount(row.line) > 0;
                         if (rowTab === "clean") return !hasErr;
                         if (rowTab === "issues") return hasErr;
+                        if (rowTab === "comments") return hasComments;
                         return true;
                       })
                       .map((row) => {
@@ -826,6 +922,11 @@ export default function DeclarationValidation() {
                                 >
                                   <Pencil className="h-3 w-3" />
                                 </Button>
+                                {getCommentCount(row.line, 'date') > 0 && (
+                                  <Button size="sm" variant="ghost" className="h-4 px-1 py-0 text-[10px] opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); openThread(row.line, 'date'); }}>
+                                    💬 {getCommentCount(row.line, 'date')}
+                                  </Button>
+                                )}
                               </div>
                             )}
                           </td>
@@ -865,6 +966,11 @@ export default function DeclarationValidation() {
                                 >
                                   <Pencil className="h-3 w-3" />
                                 </Button>
+                                {getCommentCount(row.line, 'description') > 0 && (
+                                  <Button size="sm" variant="ghost" className="h-4 px-1 py-0 text-[10px] opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); openThread(row.line, 'description'); }}>
+                                    💬 {getCommentCount(row.line, 'description')}
+                                  </Button>
+                                )}
                               </div>
                             )}
                           </td>
@@ -904,6 +1010,11 @@ export default function DeclarationValidation() {
                                 >
                                   <Pencil className="h-3 w-3" />
                                 </Button>
+                                {getCommentCount(row.line, 'amount') > 0 && (
+                                  <Button size="sm" variant="ghost" className="h-4 px-1 py-0 text-[10px] opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); openThread(row.line, 'amount'); }}>
+                                    💬 {getCommentCount(row.line, 'amount')}
+                                  </Button>
+                                )}
                               </div>
                             )}
                           </td>
@@ -943,6 +1054,11 @@ export default function DeclarationValidation() {
                                 >
                                   <Pencil className="h-3 w-3" />
                                 </Button>
+                                {getCommentCount(row.line, 'vat') > 0 && (
+                                  <Button size="sm" variant="ghost" className="h-4 px-1 py-0 text-[10px] opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); openThread(row.line, 'vat'); }}>
+                                    💬 {getCommentCount(row.line, 'vat')}
+                                  </Button>
+                                )}
                               </div>
                             )}
                           </td>
@@ -982,8 +1098,35 @@ export default function DeclarationValidation() {
                                 >
                                   <Pencil className="h-3 w-3" />
                                 </Button>
+                                {getCommentCount(row.line, 'country') > 0 && (
+                                  <Button size="sm" variant="ghost" className="h-4 px-1 py-0 text-[10px] opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); openThread(row.line, 'country'); }}>
+                                    💬 {getCommentCount(row.line, 'country')}
+                                  </Button>
+                                )}
                               </div>
                             )}
+                          </td>
+                          {/* Comments column */}
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            {(() => {
+                              const fields: Array<keyof typeof row> = ["date", "description", "amount", "vat", "country"] as any;
+                              const firstWithComments = (fields as string[]).find((f) => getCommentCount(row.line, f as any) > 0);
+                              if (!firstWithComments) return null;
+                              const firstCount = getCommentCount(row.line, firstWithComments as any);
+                              return (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 rounded-sm px-2"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openThread(row.line, firstWithComments);
+                                  }}
+                                >
+                                  💬 {firstCount}
+                                </Button>
+                              );
+                            })()}
                           </td>
                         </tr>
                   );
@@ -1124,6 +1267,49 @@ export default function DeclarationValidation() {
               </div>
             </CardContent>
           </Card>
+    {/* Comments Thread Panel (Approach A) */}
+    <Sheet open={!!selectedThread} onOpenChange={(v) => !v && closeThread()}>
+      <SheetContent className="w-[420px] sm:w-[540px] overflow-auto">
+        {selectedThread && (
+          <div className="space-y-4">
+            <SheetHeader>
+              <SheetTitle>
+                Line {selectedThread.line} • Field: {selectedThread.field}
+              </SheetTitle>
+              <SheetDescription className="flex items-center gap-2">
+                <Badge variant="outline" className="text-[10px] px-1 py-0">{getCommentsFor(selectedThread.line, selectedThread.field).length} comments</Badge>
+                <Badge variant="outline" className="text-[10px] px-1 py-0">Open</Badge>
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="space-y-2">
+              {getCommentsFor(selectedThread.line, selectedThread.field).map((m) => (
+                <div key={m.id} className="p-2 rounded-md border bg-background/60">
+                  <div className="text-[11px] font-medium mb-0.5">
+                    {m.author === 'consultant' ? 'Consultant' : 'Client'}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">{new Date(m.timestamp).toLocaleString()}</div>
+                  <div className="mt-1 text-sm whitespace-pre-wrap leading-5">{m.message}</div>
+                </div>
+              ))}
+              {getCommentsFor(selectedThread.line, selectedThread.field).length === 0 && (
+                <div className="text-sm text-muted-foreground">No comments yet for this field.</div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Input placeholder="Write a reply…" value={replyText} onChange={(e) => setReplyText(e.target.value)} className="h-8 rounded-sm" />
+              <Button onClick={sendReply} className="h-8 rounded-sm px-3 text-xs">Reply</Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={acknowledgeThread} className="h-8 rounded-sm px-3 text-xs">Acknowledge</Button>
+              <Button variant="outline" className="h-8 rounded-sm px-3 text-xs bg-accent text-accent-foreground" onClick={resolveThread}>Resolve</Button>
+            </div>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
         </div>
 
         {/* Action Buttons */}
