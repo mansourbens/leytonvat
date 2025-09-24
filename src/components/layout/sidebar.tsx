@@ -13,7 +13,9 @@ import {
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
+interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
+  defaultCollapsed?: boolean;
+}
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -29,8 +31,8 @@ const secondaryNavigation = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-export function Sidebar({ className }: SidebarProps) {
-  const [collapsed, setCollapsed] = useState(false);
+export function Sidebar({ className, defaultCollapsed }: SidebarProps) {
+  const [collapsed, setCollapsed] = useState(!!defaultCollapsed);
   const navigate = useNavigate();
   const { pathname } = useLocation();
 

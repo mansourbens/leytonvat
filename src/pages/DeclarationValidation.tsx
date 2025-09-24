@@ -28,6 +28,7 @@ interface ThreadMessage {
   id: string;
   line: number;
   field: string;
+  errorId?: string;
   author: "client" | "consultant";
   message: string;
   timestamp: string;
@@ -380,7 +381,12 @@ export default function DeclarationValidation() {
   const [ledgerData, setLedgerData] = useState(mockLedgerData);
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   // Generate errors only once to avoid re-randomization on edits
-  const [errors, setErrors] = useState<ValidationError[]>(() => generateMockErrors(mockLedgerData));
+  const initialGenerated = useRef<ValidationError[] | null>(null);
+  if (initialGenerated.current === null) {
+    initialGenerated.current = generateMockErrors(mockLedgerData);
+  }
+  const [allErrors] = useState<ValidationError[]>(initialGenerated.current!);
+  const [errors, setErrors] = useState<ValidationError[]>(initialGenerated.current!);
 
   // Comments/threads derived initially from errors to keep context, generated once
   const generateMockComments = (errs: ValidationError[]): ThreadMessage[] => {
@@ -391,6 +397,7 @@ export default function DeclarationValidation() {
         id: `m${mid++}`,
         line: e.line,
         field: e.field,
+        errorId: e.id,
         author: "consultant",
         message: `Please review: ${e.message}`,
         timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
@@ -399,6 +406,7 @@ export default function DeclarationValidation() {
         id: `m${mid++}`,
         line: e.line,
         field: e.field,
+        errorId: e.id,
         author: "client",
         message: "Acknowledged, will correct and update.",
         timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
@@ -408,12 +416,12 @@ export default function DeclarationValidation() {
     return messages;
   };
   const [comments, setComments] = useState<ThreadMessage[]>(() => {
-    const base = generateMockComments(generateMockErrors(mockLedgerData));
+    const base = generateMockComments(initialGenerated.current!);
     // Ensure some comments exist on specific lines/fields for demo purposes
     return base.concat([
-      { id: "demo1", line: 1, field: "description", author: "consultant", message: "Could you clarify the service scope?", timestamp: new Date().toISOString() },
-      { id: "demo2", line: 5, field: "vat", author: "client", message: "Adjusted VAT to 21% as requested.", timestamp: new Date().toISOString() },
-      { id: "demo3", line: 9, field: "amount", author: "consultant", message: "Net should exclude shipping.", timestamp: new Date().toISOString() },
+      { id: "demo1", line: 1, field: "description", errorId: initialGenerated.current!.find(e=>e.line===1 && e.field==='description')?.id, author: "consultant", message: "Could you clarify the service scope?", timestamp: new Date().toISOString() },
+      { id: "demo2", line: 5, field: "vat", errorId: initialGenerated.current!.find(e=>e.line===5 && e.field==='vat')?.id, author: "client", message: "Adjusted VAT to 21% as requested.", timestamp: new Date().toISOString() },
+      { id: "demo3", line: 9, field: "amount", errorId: initialGenerated.current!.find(e=>e.line===9 && e.field==='amount')?.id, author: "consultant", message: "Net should exclude shipping.", timestamp: new Date().toISOString() },
     ]);
   });
 
@@ -446,12 +454,20 @@ export default function DeclarationValidation() {
     toast({ title: "Issue marked fixed" });
   };
 
-  const getCommentsFor = (line: number, field: string) => comments.filter(c => c.line === line && c.field === field);
-  const getCommentCount = (line: number, field: string) => getCommentsFor(line, field).filter(c => !c.resolved).length;
+  const getCommentsFor = (line: number, field: string, errorId?: string | null) =>
+    comments.filter(c => c.line === line && c.field === field && (!errorId || c.errorId === errorId));
+  const getCommentCount = (line: number, field: string) => comments.filter(c => c.line === line && c.field === field && !c.resolved).length;
+  const getErrorCommentCount = (errorId: string) => comments.filter(c => c.errorId === errorId && !c.resolved).length;
   const getLineCommentCount = (line: number) => comments.filter(c => c.line === line && !c.resolved).length;
-  const openThread = (line: number, field: string) => {
+  const openThread = (line: number, field: string, errorId?: string) => {
     setSelectedLine(line);
     setSelectedThread({ line, field });
+    if (errorId) setActiveErrorId(errorId);
+    else {
+      // pick first error id for this line/field from allErrors
+      const first = allErrors.find(e => e.line === line && e.field === field);
+      setActiveErrorId(first ? first.id : null);
+    }
   };
   const closeThread = () => setSelectedThread(null);
   const sendReply = () => {
@@ -467,6 +483,7 @@ export default function DeclarationValidation() {
     }));
     setReplyText("");
   };
+  const [activeErrorId, setActiveErrorId] = useState<string | null>(null);
   const acknowledgeThread = () => {
     if (!selectedThread) return;
     const { line, field } = selectedThread;
@@ -475,9 +492,11 @@ export default function DeclarationValidation() {
   const resolveThread = () => {
     if (!selectedThread) return;
     const { line, field } = selectedThread;
-    // mark all comments as resolved and remove related errors for that field to sync with validation
+    const targetErrorId = activeErrorId || (errors.find(e => e.line === line && e.field === field)?.id ?? null);
+    // mark comments resolved for this field
     setComments(prev => prev.map(m => (m.line === line && m.field === field ? { ...m, resolved: true } : m)));
-    setErrors(prev => prev.filter(e => !(e.line === line && e.field === field)));
+    // remove ONLY the linked error if known, else remove all for field
+    setErrors(prev => targetErrorId ? prev.filter(e => e.id !== targetErrorId) : prev.filter(e => !(e.line === line && e.field === field)));
   };
 
   const exportErrorsToXLSX = async () => {
@@ -740,7 +759,7 @@ export default function DeclarationValidation() {
 
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar />
+      <Sidebar defaultCollapsed />
       <main className="flex-1 overflow-auto">
       <div className="p-6 space-y-6">
         {/* Header */}
@@ -1283,7 +1302,22 @@ export default function DeclarationValidation() {
             </SheetHeader>
 
             <div className="space-y-2">
-              {getCommentsFor(selectedThread.line, selectedThread.field).map((m) => (
+              {/* Tabs to select per-error thread */}
+              <div className="flex flex-wrap gap-2">
+                {allErrors.filter(e => e.line === selectedThread.line && e.field === selectedThread.field).map((e) => (
+                  <Button
+                    key={e.id}
+                    size="sm"
+                    variant={activeErrorId === e.id ? 'default' : 'outline'}
+                    className="h-7 rounded-sm text-xs"
+                    onClick={() => setActiveErrorId(e.id)}
+                  >
+                    {e.rule}
+                  </Button>
+                ))}
+              </div>
+
+              {getCommentsFor(selectedThread.line, selectedThread.field, activeErrorId).map((m) => (
                 <div key={m.id} className="p-2 rounded-md border bg-background/60">
                   <div className="text-[11px] font-medium mb-0.5">
                     {m.author === 'consultant' ? 'Consultant' : 'Client'}
@@ -1292,6 +1326,9 @@ export default function DeclarationValidation() {
                   <div className="mt-1 text-sm whitespace-pre-wrap leading-5">{m.message}</div>
                 </div>
               ))}
+              {getCommentsFor(selectedThread.line, selectedThread.field, activeErrorId).length === 0 && (
+                <div className="text-xs text-muted-foreground">No comments for this error yet.</div>
+              )}
               {getCommentsFor(selectedThread.line, selectedThread.field).length === 0 && (
                 <div className="text-sm text-muted-foreground">No comments yet for this field.</div>
               )}
@@ -1300,6 +1337,9 @@ export default function DeclarationValidation() {
             <div className="flex items-center gap-2">
               <Input placeholder="Write a reply…" value={replyText} onChange={(e) => setReplyText(e.target.value)} className="h-8 rounded-sm" />
               <Button onClick={sendReply} className="h-8 rounded-sm px-3 text-xs">Reply</Button>
+              {activeErrorId && (
+                <Badge variant="outline" className="text-[10px] px-1 py-0">{getErrorCommentCount(activeErrorId)} comments</Badge>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
